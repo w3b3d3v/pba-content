@@ -141,72 +141,86 @@ let history_ = get_history_(h, &ext.tickets, &history_daga, c);
 
 <img width="600px" src="../../assets/img/7-Polkadot/jam-encoding1.png" />
 
+```rust
+trait Encode {
+    fn e(&self) -> Vec<u8>;
+}
 
-![Screenshot 2024-11-09 at 11.41.12](https://hackmd.io/_uploads/ryKe_P2WJe.png =80%x)
-![Screenshot 2024-11-09 at 11.59.42](https://hackmd.io/_uploads/BkhHhv3bJl.png =80%x)
+impl Encode for Vec<u8> {
+    fn e(&self) -> Vec<u8> {
+        self.clone()
+    }
+}
 
-```Elixir!
-  def e(nil), do: <<>>    
-  
-  def e(x) when is_binary(x), do: x
-  
-  def e(%VariableSize{} = x), do: e(x.size) <> e(x.value)
+```
+---
+## Data Encoding
+
+<img width="600px" src="../../assets/img/7-Polkadot/jam-encoding2.png" />
+
+```rust
+struct VariableSize<T> {
+    size: usize,  // Assuming size is stored as usize
+    value: T,     // Generic type to allow flexible values
+}
+
+impl<T: Encode> Encode for VariableSize<T> {
+    fn encode(&self) -> Vec<u8> {
+        let mut encoded = Vec::new();
+        encoded.extend(self.size.to_le_bytes()); // Encode size as bytes
+        encoded.extend(self.value.encode());     // Encode the actual value
+        encoded
+    }
+}
 ```
 
----
 
-## Block Encoding
-
-![Screenshot 2024-11-09 at 11.48.50](https://hackmd.io/_uploads/ryWptw3WJg.png)
 
 ---
 
 ## Block Encoding
 
-![Screenshot 2024-11-09 at 11.48.50](https://hackmd.io/_uploads/ryWptw3WJg.png)
+<img width="700px" src="../../assets/img/7-Polkadot/jam-block-encoding.png" />
 
-```Elixir
-  def e(%Block{extrinsic: e, header: h}), do: e({h, e})
+```rust
+impl Encode for Block {
+    fn encode(&self) -> Vec<u8> {
+        let mut encoded = Vec::new();
+        encoded.extend(self.header.encode());
+        encoded.extend(self.extrinsic.encode());
+        encoded
+    }
+}
 
-  def e(%Block.Extrinsic{} = ex), 
-    do: e({vs(ex.tickets), ex.disputes, vs(ex.preimages), 
-     vs(ex.assurances), vs(ex.guarantees)
-    })
+impl Encode for Extrinsic {
+    fn encode(&self) -> Vec<u8> {
+        let mut encoded = Vec::new();
+        encoded.extend(self.tickets.encode());
+        encoded.extend(self.disputes.encode());
+        ...
+        encoded
+    }
+}
 ```
 
 ---
 
 ## PVM
-![Screenshot 2024-11-10 at 14.06.23](https://hackmd.io/_uploads/HJJKjRa-1g.png)
+<img width="700px" src="../../assets/img/7-Polkadot/jam-pvm.png" />
 
-```Elixir
-  @spec f(
-    n_integer(), n_integer(), list(n_integer()), Memory.t()
-    ) :: {n_integer(), list(integer()), Memory.t()}
-  def f(n, gas, registers, memory) do
-    if n == @gas do
-      Host.remaining_gas(gas, registers, memory)
-    else
-      {gas - 10, 
-       Enum.take(registers, 7) ++ 
-       [@what | Enum.drop(registers, 8)], 
-       memory}
-    end
-  end
-```
-
----
-
-## State Merklization
-
-![Screenshot 2024-10-21 at 18.01.12](https://hackmd.io/_uploads/rJGNK-ElJx.png =80%x)
-
-```Elixir!
-def merkelize_state(t) do
-  merkelize(
-   for {k, v} <- t, do: {bits(k), {k, v}} |> Enum.into(%{})
-  )
-end
+```rust
+fn f(
+      n: u64, 
+      gas: u64, 
+      mut registers: Vec<u64>, 
+      memory: Memory
+) -> (u64, Vec<u64>, Memory) {
+  if n == GAS {
+      return Host::remaining_gas(gas, registers, memory);
+  }
+  registers[7] = WHAT;
+  (gas.saturating_sub(10), registers, memory)
+}
 ```
 
 ---
@@ -214,20 +228,10 @@ end
 ## Conclusion
 
 - Start coding to understand JAM from a developer's perspective
-- Elixir functional features reduces learning curve
 - Faster development
 - Functional alignment with math
-- Reduced complexity
+- Learn Elixir, as its functional features reduces learning curve
 
----
-
-## Jamixir
-
-![Screenshot 2024-11-09 at 19.43.26](https://hackmd.io/_uploads/Sk0gtAh-Je.png =150x)
-
-
-Join us
-![Screenshot 2024-11-10 at 15.11.48](https://hackmd.io/_uploads/S1G05JAb1x.png =300x)
 
 
 
